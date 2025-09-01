@@ -1664,231 +1664,246 @@ class Front_model extends CI_Model {
     }
 
     public function calculatePackagePrice($arr=[],$calculationFrom='HOME_PAGE') {
-        $packageId = $arr['packageId'];
-        $startDate = $arr['startDate'];
-        $endDate = $arr['endDate'];
-        $roomId = $arr['roomId'];
-        $resortId = $arr['resortId'];
-        $adults = $arr['adults'];
-        $children = $arr['children'];
-        $infant = $arr['infant'];
-        $roomCount = $arr['roomCount'];
-        $nights = $arr['nights'];
-        $mealType = $arr['mealType'];
-        $transferType = $arr['transferType'];
+        try {
+            $packageId = $arr['packageId'];
+            $startDate = $arr['startDate'];
+            $endDate = $arr['endDate'];
+            $roomId = $arr['roomId'];
+            $resortId = $arr['resortId'];
+            $adults = $arr['adults'];
+            $children = $arr['children'];
+            $infant = $arr['infant'];
+            $roomCount = $arr['roomCount'];
+            $nights = $arr['nights'];
+            $mealType = $arr['mealType'];
+            $transferType = $arr['transferType'];
 
-        $totalPax = (int)$adults + (int)$children;
+            $totalPax = (int)$adults + (int)$children;
 
-        $packageSeasons = $this->getSeasons($packageId,$startDate,$endDate);
-        if (empty($packageSeasons)) {
-            throw new Exception("No season period for selected date range.");
-        }
+            $packageSeasons = $this->getSeasons($packageId,$startDate,$endDate);
+            if (empty($packageSeasons)) {
+                throw new Exception("No season period for selected date range.");
+            }
 
-        $packageMeals = ($mealType) ? $this->getRoomMeal($mealType,$roomId) : [];
+            $packageMeals = ($mealType) ? $this->getRoomMeal($mealType,$roomId) : [];
 
-        $packageTransfer = ($transferType) ? $this->get_default_transfer($transferType,$totalPax) : [];
+            $packageTransfer = ($transferType) ? $this->get_default_transfer($transferType,$totalPax) : [];
 
-        $packageTaxes = $this->getTaxes($packageId);
+            $packageTaxes = $this->getTaxes($packageId);
 
-        $packageOffers = $this->load_offers($resortId,$packageId,$roomId,$startDate,$endDate,$totalPax,$this->userCountry); # country ID should be passed from GEO IP.
+            $packageOffers = $this->load_offers($resortId,$packageId,$roomId,$startDate,$endDate,$totalPax,$this->userCountry); # country ID should be passed from GEO IP.
 
-        # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-        #                                                       Package price calculation formula                                                                     #
-        # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-        /*
-            - WITHOUT OFFER
-                - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST%) * COMM% + (GT * PAX)) * NYT + TRANSFER + (ML * NYT * PAX)
+            # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+            #                                                       Package price calculation formula                                                                     #
+            # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+            /*
+                - WITHOUT OFFER
+                    - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST%) * COMM% + (GT * PAX)) * NYT + TRANSFER + (ML * NYT * PAX)
 
-            - WITH SINGLE OFFER [DISCOUNT]
-                - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) - (OFFERS) + ((BR + (BR * GST%)) * ST%) - (OFFERS)) * COMM% + (GT * PAX)) * NYT + TRANSFER + (ML * NYT * PAX)
+                - WITH SINGLE OFFER [DISCOUNT]
+                    - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) - (OFFERS) + ((BR + (BR * GST%)) * ST%) - (OFFERS)) * COMM% + (GT * PAX)) * NYT + TRANSFER + (ML * NYT * PAX)
 
-            - WITH MULTIPLE OFFER [DISCOUNT + FREE NIGHT]
-                - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) - (OFFERS) + ((BR + (BR * GST%)) * ST%) - (OFFERS)) * COMM%) * (NYT - FREE NIGHT) + (GT * PAX * NYT) + TRANSFER + (ML * NYT * PAX)
+                - WITH MULTIPLE OFFER [DISCOUNT + FREE NIGHT]
+                    - ((BR + (BR * GST%)) + (BR + (BR * GST%)) * ST% + ((BR + (BR * GST%)) - (OFFERS) + ((BR + (BR * GST%)) * ST%) - (OFFERS)) * COMM%) * (NYT - FREE NIGHT) + (GT * PAX * NYT) + TRANSFER + (ML * NYT * PAX)
+                
+                Example: 
+                    ~ adult: 100
+                    ~ child: 50
+                    ~ nights: 3
+                    ~ service: 10%
+                    ~ greenT: 6
+                    ~ gst: 16%
+                    ~ company commission: 10%
+                    ~ adult count: 2
+                    ~ child count: 1
+                    ~ meal
+                        - adult: 150
+                        - child: 100
+                    ~ transfer
+                        - adult: 100
+                        - child: 50
+                    
+                    ~ offer
+                        - adult: 40%
+                        - child: 20%
+                    ~ free night: 1
+
+                    BR: Adult Price x Adult Count + Child Price x Child Count
+                        So, BR: 250
+                    
+                    # calculation WITHOUT OFFER
+
+                        ((250 + (250 * 16%)) + ((250 + (250 * 16%)) * 10%)) + ((250 + (250 * 16%)) + ((250 + (250 * 16%)) * 10%)) * 10%) + (6 * 3)) * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3)
+
+                        room rate with GST: 250 + (250 * 16%) = 290
+                        room rate with ST: 290 + (290 * 10%) = 319
+                        room rate with commission and GT: 319 + (319 * 10%) + (6 * 3) = 368.9
+                        booking final amount = 368.9 * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3) = 2556.7
+
+                    # calculation WITH ONLY OFFER
+                    
+                        room rate with GST: 250 + (250 * 16%) = 290
+                        room rate with ST: 290 + (290 * 10%) = 319
+                        discount offer: 319 - (319 * (40 + 20)%) = 127.6
+                        room rate with commission and GT: 127.6 + (127.6 * 10%) + (6 * 3) = 158.36
+                        booking final amount = 158.36 * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3) = 1925.08
+                    
+                    # calculation WITH OFFER + FREE NIGHT
+
+                        room rate with GST: 250 + (250 * 16%) = 290
+                        room rate with ST: 290 + (290 * 10%) = 319
+                        discount offer: 319 - (319 * (40 + 20)%) = 127.6
+                        freenight = 1
+                        room rate with commission: 127.6 + (127.6 * 10%) = 158.36
+                        only GT: (6 * 3 * 3) = 54
+                        booking final amount = 158.36 * (3 - 1) + (100 * 2) + (50 * 1) + (150 * 2 * (3 - 1)) + (100 * 1 * (3 - 1)) + 54 = 1420.72
+            */
+            # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+            $perSeasonPerNight = [];
+            $perSeasonTotalPrice = [];
+
+
+            $taxNames = []; # Initialize the tax names.
+            $mealPlaneName = []; # Initialize the meal plan name.
+            $transferMethodName = []; # Initialize the transfer type name.
+
             
-            Example: 
-                ~ adult: 100
-                ~ child: 50
-                ~ nights: 3
-                ~ service: 10%
-                ~ greenT: 6
-                ~ gst: 16%
-                ~ company commission: 10%
-                ~ adult count: 2
-                ~ child count: 1
-                ~ meal
-                    - adult: 150
-                    - child: 100
-                ~ transfer
-                    - adult: 100
-                    - child: 50
-                
-                ~ offer
-                    - adult: 40%
-                    - child: 20%
-                ~ free night: 1
-
-                BR: Adult Price x Adult Count + Child Price x Child Count
-                    So, BR: 250
-                
-                # calculation WITHOUT OFFER
-
-                    ((250 + (250 * 16%)) + ((250 + (250 * 16%)) * 10%)) + ((250 + (250 * 16%)) + ((250 + (250 * 16%)) * 10%)) * 10%) + (6 * 3)) * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3)
-
-                    room rate with GST: 250 + (250 * 16%) = 290
-                    room rate with ST: 290 + (290 * 10%) = 319
-                    room rate with commission and GT: 319 + (319 * 10%) + (6 * 3) = 368.9
-                    booking final amount = 368.9 * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3) = 2556.7
-
-                # calculation WITH ONLY OFFER
-                
-                    room rate with GST: 250 + (250 * 16%) = 290
-                    room rate with ST: 290 + (290 * 10%) = 319
-                    discount offer: 319 - (319 * (40 + 20)%) = 127.6
-                    room rate with commission and GT: 127.6 + (127.6 * 10%) + (6 * 3) = 158.36
-                    booking final amount = 158.36 * 3 + (100 * 2) + (50 * 1) + (150 * 2 * 3) + (100 * 1 * 3) = 1925.08
-                
-                # calculation WITH OFFER + FREE NIGHT
-
-                    room rate with GST: 250 + (250 * 16%) = 290
-                    room rate with ST: 290 + (290 * 10%) = 319
-                    discount offer: 319 - (319 * (40 + 20)%) = 127.6
-                    freenight = 1
-                    room rate with commission: 127.6 + (127.6 * 10%) = 158.36
-                    only GT: (6 * 3 * 3) = 54
-                    booking final amount = 158.36 * (3 - 1) + (100 * 2) + (50 * 1) + (150 * 2 * (3 - 1)) + (100 * 1 * (3 - 1)) + 54 = 1420.72
-        */
-        # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-        $perSeasonPerNight = [];
-        $perSeasonTotalPrice = [];
-
-
-        $taxNames = []; # Initialize the tax names.
-        $mealPlaneName = []; # Initialize the meal plan name.
-        $transferMethodName = []; # Initialize the transfer type name.
-
-        
-        $payableNights = $nights; // assigning the nights count to the payable night count variable.
-        foreach ($packageSeasons as $key => $season) {
-            $seasonMinPrice = $this->getPackageMinPrice($season->package_id,$season->ps_id,$roomId,$adults,$children);
-            if (empty($seasonMinPrice)) {
-                if($calculationFrom === 'BOOKING_PAGE') {
-                    $this->session->set_flashdata('no_room_for_pax', 'We regret to inform you that the selected room cannot accommodate the specified number of guests. Kindly submit an inquiry, and we will be pleased to assist you further.'); // show the error message in the inquiry form.
-                    throw new Exception("SEND_INQUIRY");
-                } else {
-                    throw new Exception("No amount rate for this period.");
+            $payableNights = $nights; // assigning the nights count to the payable night count variable.
+            foreach ($packageSeasons as $key => $season) {
+                $seasonMinPrice = $this->getPackageMinPrice($season->package_id,$season->ps_id,$roomId,$adults,$children);
+                if (empty($seasonMinPrice)) {
+                    if($calculationFrom === 'BOOKING_PAGE') {
+                        $this->session->set_flashdata('no_room_for_pax', 'We regret to inform you that the selected room cannot accommodate the specified number of guests. Kindly submit an inquiry, and we will be pleased to assist you further.'); // show the error message in the inquiry form.
+                        throw new Exception("SEND_INQUIRY");
+                    } else {
+                        throw new Exception("No amount rate for this period.");
+                    }
                 }
+
+                # calculate the tax amounts according to the adult, child, and infant.
+                list($adultGST,$adultST,$childGST,$childST,$infantGST,$infantST,$greenTax,$taxNames) = $this->calculateTaxAmount($packageTaxes,$totalPax,$nights,['adult' => $seasonMinPrice->adult_amount, 'child' => $seasonMinPrice->child_amount, 'infant' => $seasonMinPrice->infant_amount]);
+
+                # base rate calculation seperately with tax amounts. ---> [ adult, child, infant ]
+                $adultBaseRate = $seasonMinPrice->adult_amount + $adultGST + $adultST;
+                $childBaseRate = $seasonMinPrice->child_amount + $childGST + $childST;
+                $infantBaseRate = $seasonMinPrice->infant_amount + $infantGST + $infantST;
+
+                $offerType = array_column($packageOffers,'po_id');
+                # check offer applicable of not.
+                $isOfferApplicable = (!empty($packageOffers)) ? $this->checkOfferApplicableForCurrentSeason($offerType,$season->start_date,$season->end_date) : false; // True / False
+                
+                # if applicable calculate the offer amount and replace the current amount with the offer amount.
+                if ($isOfferApplicable) {
+                    $discountOffer = $this->offerChunk($packageOffers)['DISCOUNT'] ?? []; // get only the DISCOUNT offers.
+                    
+                    # re-arrange the discount offer array in ascending order according to the offer_type.
+                    if($discountOffer) {
+                        usort($discountOffer, function($a, $b) {
+                            return $a->which_offer_type <=> $b->which_offer_type;
+                        });
+
+                        # calculate the offer amounts, reduced from the base rate and overwrite the base rate values.
+                        list($adultBaseRate, $childBaseRate, $infantBaseRate) = $this->calculateOfferAmount($discountOffer,['adult' => $adultBaseRate, 'child' => $childBaseRate, 'infant' => $infantBaseRate]);
+                    }
+
+                    $freeNightOffers = $this->offerChunk($packageOffers)['FREE_NIGHT'] ?? []; // get only the FREE_NIGHT offers.
+                    $payableNights = $freeNightOffers ? $this->getPayableNightCounts($freeNightOffers, $nights) : $nights;// get the payable nights after reducing the free nights.
+                }
+
+                # adding all the base rates after calculating the tax and the offer.
+                $finalBaseRate = floatval($adultBaseRate) + floatval($childBaseRate) + floatval($infantBaseRate);
+
+                # calculate the company commission.
+                $companyCommission = ($seasonMinPrice->commision_type == 0) ? $seasonMinPrice->com_amount : $this->getTheCommission($seasonMinPrice->com_amount,$finalBaseRate);
+
+                # apply the commission amount to the final base rate.
+                $finalBaseRate += $companyCommission;
+
+                # Transfer price calculation
+                $isTransferApplicable = !empty($packageTransfer) && $this->checkTransferApplicableForCurrentSeason($transferType, $season->start_date, $season->end_date); // True / False
+
+                $totalTransferPrice = 0; # Initialize the final transfer amount.
+
+                if($isTransferApplicable) {
+                    $transferMethodName[] = $packageTransfer->transfer_mode. ' Airport Transfers by ' .$packageTransfer->transfer_name;
+
+                    $infantTransfer = $childTransfer = $adultTransfer = 0;
+                    $infantCom = $childCom = $adultCom = 0;
+                    switch ($packageTransfer->comision_type) {
+                        case '1': // Percentate
+                            $infantCom 	= $this->getTheCommission($packageTransfer->infant_com,$packageTransfer->infant);
+                            $childCom 	= $this->getTheCommission($packageTransfer->child_com,$packageTransfer->child);
+                            $adultCom 	= $this->getTheCommission($packageTransfer->adult_com,$packageTransfer->adult);
+                            break;
+                        case '0': // Flate rate
+                            $infantCom 	= $packageTransfer->infant_com;
+                            $childCom 	= $packageTransfer->child_com;
+                            $adultCom 	= $packageTransfer->adult_com;
+                            break;
+                    }
+
+                    $infantTransfer = ($packageTransfer->infant + $infantCom) * $infant; # calculate the infant amount and the comission with number of infants.
+                    $childTransfer = ($packageTransfer->child + $childCom) * $children;  # calculate the children amount and the comission with number of children.
+                    $adultTransfer = ($packageTransfer->adult + $adultCom) * $adults;  # calculate the adult amount and the comission with number of adults.
+
+                    $totalTransferPrice = $infantTransfer + $childTransfer + $adultTransfer + $packageTransfer->service_charge; // total of transfer amount.
+                }
+
+                # Meal price calculation
+                $totalMealPrice = 0; # Initialize the meal amount.
+                $perNightMealPrice = 0; # Initialize per night meal amount.
+
+                $isMealApplicable = !empty($packageMeals) && $this->checkMealApplicableForCurrentSeason($mealType,$season->start_date,$season->end_date); // True / False
+                if ($isMealApplicable) {
+                    # calculate the total meal price and find the total payable amount by payable night count.
+                    $perNightMealPrice = (($packageMeals->adult * $adults) + ($packageMeals->child * $children) + ($packageMeals->infant * $infant));
+                    $totalMealPrice = $perNightMealPrice * $payableNights;
+
+                    $mealPlaneName[] = $packageMeals->meal_plan_name;
+                }
+
+                # season wise per night amount added to the array.
+                $perSeasonPerNight[] = ($finalBaseRate * $roomCount) + ($greenTax / $nights) + $totalTransferPrice + $perNightMealPrice;
+
+                # season wise total amount added to the array.
+                $perSeasonTotalPrice[] = ($finalBaseRate * $payableNights * $roomCount) + $greenTax + $totalTransferPrice + $totalMealPrice;
             }
-
-            # calculate the tax amounts according to the adult, child, and infant.
-            list($adultGST,$adultST,$childGST,$childST,$infantGST,$infantST,$greenTax,$taxNames) = $this->calculateTaxAmount($packageTaxes,$totalPax,$nights,['adult' => $seasonMinPrice->adult_amount, 'child' => $seasonMinPrice->child_amount, 'infant' => $seasonMinPrice->infant_amount]);
-
-            # base rate calculation seperately with tax amounts. ---> [ adult, child, infant ]
-            $adultBaseRate = $seasonMinPrice->adult_amount + $adultGST + $adultST;
-            $childBaseRate = $seasonMinPrice->child_amount + $childGST + $childST;
-            $infantBaseRate = $seasonMinPrice->infant_amount + $infantGST + $infantST;
-
-            $offerType = array_column($packageOffers,'po_id');
-            # check offer applicable of not.
-            $isOfferApplicable = (!empty($packageOffers)) ? $this->checkOfferApplicableForCurrentSeason($offerType,$season->start_date,$season->end_date) : false; // True / False
             
-            # if applicable calculate the offer amount and replace the current amount with the offer amount.
-            if ($isOfferApplicable) {
-                $discountOffer = $this->offerChunk($packageOffers)['DISCOUNT'] ?? []; // get only the DISCOUNT offers.
-                
-                # re-arrange the discount offer array in ascending order according to the offer_type.
-                if($discountOffer) {
-                    usort($discountOffer, function($a, $b) {
-                        return $a->which_offer_type <=> $b->which_offer_type;
-                    });
+            # add per night amount
+            $perNightPrice = round(bcdiv(array_sum($perSeasonPerNight), 1, 2), 0, PHP_ROUND_HALF_UP); // This gives you a value with two decimal places and Use the round function to round to the nearest integer
 
-                    # calculate the offer amounts, reduced from the base rate and overwrite the base rate values.
-                    list($adultBaseRate, $childBaseRate, $infantBaseRate) = $this->calculateOfferAmount($discountOffer,['adult' => $adultBaseRate, 'child' => $childBaseRate, 'infant' => $infantBaseRate]);
-                }
+            # calculate the total final amount. Adding whole seasons' price together.
+            $totalFinalPrice = round(bcdiv(array_sum($perSeasonTotalPrice), 1, 2), 0, PHP_ROUND_HALF_UP); // This gives you a value with two decimal places and Use the round function to round to the nearest integer
+            
 
-                $freeNightOffers = $this->offerChunk($packageOffers)['FREE_NIGHT'] ?? []; // get only the FREE_NIGHT offers.
-                $payableNights = $freeNightOffers ? $this->getPayableNightCounts($freeNightOffers, $nights) : $nights;// get the payable nights after reducing the free nights.
+            $priceInclude = array(
+                'taxes' => $taxNames,
+                'default_meal_plan' => implode(',', $mealPlaneName),
+                'default_transfer_name' => implode(',', $transferMethodName)
+            );
+
+            return [
+                'calculatedPrice' => $totalFinalPrice, 
+                'calculatePerNightPrice' => $perNightPrice, 
+                'stayNights' => $nights, 
+                'payableNights' => $payableNights,
+                'price_included' => $priceInclude
+            ];
+        } catch (Exception $e) {
+            // Differentiate error types
+            if ($e->getMessage() === "SEND_INQUIRY") {
+                $this->session->set_flashdata(
+                    'error_message',
+                    'We regret to inform you that the selected room cannot accommodate the specified number of guests. Kindly submit an inquiry.'
+                );
+                redirect('inquiry');
+            } else {
+                // For "No amount rate for this period." and other errors
+                $this->session->set_flashdata('error_message', $e->getMessage());
+                redirect('home');
             }
-
-            # adding all the base rates after calculating the tax and the offer.
-            $finalBaseRate = floatval($adultBaseRate) + floatval($childBaseRate) + floatval($infantBaseRate);
-
-            # calculate the company commission.
-            $companyCommission = ($seasonMinPrice->commision_type == 0) ? $seasonMinPrice->com_amount : $this->getTheCommission($seasonMinPrice->com_amount,$finalBaseRate);
-
-            # apply the commission amount to the final base rate.
-            $finalBaseRate += $companyCommission;
-
-            # Transfer price calculation
-            $isTransferApplicable = !empty($packageTransfer) && $this->checkTransferApplicableForCurrentSeason($transferType, $season->start_date, $season->end_date); // True / False
-
-            $totalTransferPrice = 0; # Initialize the final transfer amount.
-
-            if($isTransferApplicable) {
-                $transferMethodName[] = $packageTransfer->transfer_mode. ' Airport Transfers by ' .$packageTransfer->transfer_name;
-
-                $infantTransfer = $childTransfer = $adultTransfer = 0;
-                $infantCom = $childCom = $adultCom = 0;
-                switch ($packageTransfer->comision_type) {
-                    case '1': // Percentate
-                        $infantCom 	= $this->getTheCommission($packageTransfer->infant_com,$packageTransfer->infant);
-                        $childCom 	= $this->getTheCommission($packageTransfer->child_com,$packageTransfer->child);
-                        $adultCom 	= $this->getTheCommission($packageTransfer->adult_com,$packageTransfer->adult);
-                        break;
-                    case '0': // Flate rate
-                        $infantCom 	= $packageTransfer->infant_com;
-                        $childCom 	= $packageTransfer->child_com;
-                        $adultCom 	= $packageTransfer->adult_com;
-                        break;
-                }
-
-                $infantTransfer = ($packageTransfer->infant + $infantCom) * $infant; # calculate the infant amount and the comission with number of infants.
-                $childTransfer = ($packageTransfer->child + $childCom) * $children;  # calculate the children amount and the comission with number of children.
-                $adultTransfer = ($packageTransfer->adult + $adultCom) * $adults;  # calculate the adult amount and the comission with number of adults.
-
-                $totalTransferPrice = $infantTransfer + $childTransfer + $adultTransfer + $packageTransfer->service_charge; // total of transfer amount.
-            }
-
-            # Meal price calculation
-            $totalMealPrice = 0; # Initialize the meal amount.
-            $perNightMealPrice = 0; # Initialize per night meal amount.
-
-            $isMealApplicable = !empty($packageMeals) && $this->checkMealApplicableForCurrentSeason($mealType,$season->start_date,$season->end_date); // True / False
-            if ($isMealApplicable) {
-                # calculate the total meal price and find the total payable amount by payable night count.
-                $perNightMealPrice = (($packageMeals->adult * $adults) + ($packageMeals->child * $children) + ($packageMeals->infant * $infant));
-                $totalMealPrice = $perNightMealPrice * $payableNights;
-
-                $mealPlaneName[] = $packageMeals->meal_plan_name;
-            }
-
-            # season wise per night amount added to the array.
-            $perSeasonPerNight[] = ($finalBaseRate * $roomCount) + ($greenTax / $nights) + $totalTransferPrice + $perNightMealPrice;
-
-            # season wise total amount added to the array.
-            $perSeasonTotalPrice[] = ($finalBaseRate * $payableNights * $roomCount) + $greenTax + $totalTransferPrice + $totalMealPrice;
         }
-        
-        # add per night amount
-        $perNightPrice = round(bcdiv(array_sum($perSeasonPerNight), 1, 2), 0, PHP_ROUND_HALF_UP); // This gives you a value with two decimal places and Use the round function to round to the nearest integer
-
-        # calculate the total final amount. Adding whole seasons' price together.
-        $totalFinalPrice = round(bcdiv(array_sum($perSeasonTotalPrice), 1, 2), 0, PHP_ROUND_HALF_UP); // This gives you a value with two decimal places and Use the round function to round to the nearest integer
-        
-
-        $priceInclude = array(
-            'taxes' => $taxNames,
-            'default_meal_plan' => implode(',', $mealPlaneName),
-            'default_transfer_name' => implode(',', $transferMethodName)
-        );
-
-        return [
-            'calculatedPrice' => $totalFinalPrice, 
-            'calculatePerNightPrice' => $perNightPrice, 
-            'stayNights' => $nights, 
-            'payableNights' => $payableNights,
-            'price_included' => $priceInclude
-        ];
     }
 
     public function load_offers($resortId,$packageId,$villaId,$startDate,$endDate,$totalPax,$countryId) {
