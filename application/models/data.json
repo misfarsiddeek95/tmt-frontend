@@ -1,0 +1,122 @@
+[
+  {
+    "id": 183,
+    "category": 1,
+    "name": "Sri Lanka",
+    "location": "Sri Lanka",
+    "type": "Country",
+    "icon": "fa fa-globe",
+    "address": "",
+    "villas": "4 Properties"
+  },
+  {
+    "id": 121,
+    "category": 1,
+    "name": "Maldives",
+    "location": "Maldives",
+    "type": "Country",
+    "icon": "fa fa-globe",
+    "address": "",
+    "villas": "25 Properties"
+  },
+  {
+    "id": 4,
+    "category": 4,
+    "name": "Baa Atoll",
+    "location": "MALDIVES",
+    "type": "Area",
+    "icon": "fa fa-map-marker",
+    "address": "Maldives",
+    "villas": "3 Properties"
+  },
+  {
+    "id": 1,
+    "category": 4,
+    "name": "Haa Alifu Atoll",
+    "location": "MALDIVES",
+    "type": "Area",
+    "icon": "fa fa-map-marker",
+    "address": "Maldives",
+    "villas": "3 Properties"
+  },
+  {
+    "id": 1,
+    "category": 4,
+    "name": "Raa Atolll",
+    "location": "MALDIVES",
+    "type": "Area",
+    "icon": "fa fa-map-marker",
+    "address": "Maldives",
+    "villas": "3 Properties"
+  },
+  {
+    "id": 1,
+    "category": 4,
+    "name": "Kaafu Atoll",
+    "location": "MALDIVES",
+    "type": "Area",
+    "icon": "fa fa-map-marker",
+    "address": "Maldives",
+    "villas": "3 Properties"
+  },
+  {
+    "id": 2,
+    "category": 3,
+    "name": "Amaya Kuda Rah Maldives ",
+    "location": "MALDIVES",
+    "type": "Property",
+    "icon": "fa fa-hotel",
+    "address": "Gaafu Dhalu,Maldives",
+    "villas": "25 Villas"
+  },
+  {
+    "id": 4,
+    "category": 3,
+    "name": "Ayada Maldives ",
+    "location": "MALDIVES",
+    "type": "Property",
+    "icon": "fa fa-hotel",
+    "address": "Gaafu Dhalu,Maldives",
+    "villas": "25 Villas"
+  },
+  {
+    "id": 107,
+    "category": 3,
+    "name": "Hard Rock Hotels",
+    "location": "MALDIVES",
+    "type": "Property",
+    "icon": "fa fa-hotel",
+    "address": "Gaafu Dhalu,Maldives",
+    "villas": "25 Villas"
+  },
+  {
+    "id": "3",
+    "category": 3,
+    "name": "Amari Havodda Maldives ",
+    "location": "MALDIVES",
+    "type": "Property",
+    "icon": "fa fa-hotel",
+    "address": "Gaafu Dhalu,Maldives",
+    "villas": "25 Villas"
+  },
+  {
+    "id": 139,
+    "category": 3,
+    "name": "Constance",
+    "location": "AFGHANISTAN",
+    "type": "Property",
+    "icon": "fa fa-hotel",
+    "address": "Gaafu Dhalu,Maldives",
+    "villas": "25 Villas"
+  },
+  {
+    "id": 2,
+    "category": 2,
+    "name": "Kudarah",
+    "location": "Maldives",
+    "type": "City",
+    "icon": "fa fa-map-signs",
+    "address": "Maldives",
+    "villas": "3 Properties"
+  }
+]
